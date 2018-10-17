@@ -15,10 +15,11 @@ import okhttp3.Request
 import za.co.joshuabakerg.fourdust.UserSession
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.TimeUnit
 
 val cachedImages = ConcurrentHashMap<String, Bitmap>()
 
-fun applyUrlToImages(imagePairs: List<Pair<String, ImageView>>) :Flowable<Pair<ImageView, Bitmap>>{
+fun applyUrlToImages(imagePairs: List<Pair<String, ImageView>>): Flowable<Pair<ImageView, Bitmap>> {
     return Flowable.create({
         val emitter = it
         imagePairs.filter {
@@ -37,7 +38,7 @@ fun applyUrlToImages(imagePairs: List<Pair<String, ImageView>>) :Flowable<Pair<I
                 Pair(pair.second, it)
             }
         }
-        if(imageGets.isNotEmpty()) {
+        if (imageGets.isNotEmpty()) {
             inBackground(
                     Flowable.fromIterable(imageGets)
                             .flatMap { it.subscribeOn(Schedulers.io()) }
@@ -49,7 +50,7 @@ fun applyUrlToImages(imagePairs: List<Pair<String, ImageView>>) :Flowable<Pair<I
     }, BackpressureStrategy.BUFFER)
 }
 
-fun applyUrlToImage(url: String, imageView: ImageView) : Flowable<ImageView>{
+fun applyUrlToImage(url: String, imageView: ImageView): Flowable<ImageView> {
     return Flowable.create({
         val emitter = it
         if (cachedImages.containsKey(url)) {
@@ -57,7 +58,7 @@ fun applyUrlToImage(url: String, imageView: ImageView) : Flowable<ImageView>{
             emitter.onNext(imageView)
             emitter.onComplete()
         } else {
-            inBackground(fetchImage(url).subscribeOn(Schedulers.io()))
+            inBackground(fetchImage(url).subscribeOn(Schedulers.io()).observeOn(Schedulers.io()))
                     .subscribe {
                         cachedImages[url] = it
                         imageView.setImageBitmap(it)
@@ -68,14 +69,30 @@ fun applyUrlToImage(url: String, imageView: ImageView) : Flowable<ImageView>{
     }, BackpressureStrategy.BUFFER)
 }
 
+fun fetchImageCache(url: String): Flowable<Bitmap> {
+    if (cachedImages.containsKey(url)) {
+        return Flowable.just(cachedImages[url])
+    } else {
+        return fetchImage(url)
+    }
+}
+
 fun fetchImage(url: String): Flowable<Bitmap> {
     return Flowable.fromCallable<Bitmap> {
         val start = System.currentTimeMillis()
-        val request = Request.Builder().url(url).header("Cookie", "sessionid=" + UserSession.instance.sessionID).get().build()
-        val response = OkHttpClient().newCall(request).execute()
+        val request = Request.Builder()
+                .url(url).header("Cookie", "sessionid=" + UserSession.instance.sessionID).get().build()
+        val client = OkHttpClient().newBuilder()
+                .connectTimeout(5, TimeUnit.SECONDS)
+                .build()
+        val response = client.newCall(request).execute()
         val body = response.body()
         Log.i("HttpUtils", "Took ${System.currentTimeMillis() - start}ms to download $url")
-        BitmapFactory.decodeStream(body!!.byteStream())
+        val decodeStream = BitmapFactory.decodeStream(body!!.byteStream())
+        if (decodeStream != null) {
+            cachedImages[url] = decodeStream
+        }
+        decodeStream
     }
 }
 

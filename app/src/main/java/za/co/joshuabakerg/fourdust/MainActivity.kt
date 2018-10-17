@@ -1,7 +1,9 @@
 package za.co.joshuabakerg.fourdust
 
 import android.app.ProgressDialog
+import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.support.design.widget.NavigationView
 import android.support.design.widget.Snackbar
@@ -12,15 +14,17 @@ import android.text.TextUtils
 import android.view.Gravity
 import android.view.Menu
 import android.view.MenuItem
+import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.Space
 import android.widget.TextView
 import io.reactivex.schedulers.Schedulers
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.app_bar_main.*
 import kotlinx.android.synthetic.main.content_main.*
 import kotlinx.android.synthetic.main.nav_header_main.*
-import org.w3c.dom.Text
+import za.co.joshuabakerg.fourdust.Components.ChatListItem
 import za.co.joshuabakerg.fourdust.utils.*
 
 
@@ -83,37 +87,15 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 progress.setCancelable(false)
                 progress.show()
                 println("took ${System.currentTimeMillis() - start} to create progress bar")
-                inBackground(chatService.getChatDetails().subscribeOn(Schedulers.io()))
+                inBackground(chatService.getChatDetailsCache().subscribeOn(Schedulers.io()))
                         .subscribe {
-                            val imageLoads = ArrayList<Pair<String, ImageView>>()
+                            progress.cancel()
                             ll.removeAllViews()
                             it.forEach {
-                                //Image
-                                val image = it.userDetails[it.mainUser]?.image
-                                val imageView = ImageView(applicationContext)
-                                imageView.layoutParams = LinearLayout.LayoutParams(150, 150)
-                                imageView.setImageResource(R.drawable.unknown)
-                                imageLoads.add(Pair(image!!, imageView))
-
-                                //Name
-                                val name = it.userDetails[it.mainUser]?.name
-                                val textView = TextView(applicationContext)
-                                textView.textSize = 20f
-                                textView.text = name
-                                textView.gravity = Gravity.CENTER_VERTICAL
-
-                                //Container
-                                val linearLayout = LinearLayout(applicationContext)
-                                linearLayout.orientation = LinearLayout.HORIZONTAL
-
-                                linearLayout.addView(imageView)
-                                linearLayout.addView(textView)
-
-                                ll.addView(linearLayout)
-                            }
-                            applyUrlToImages(imageLoads).subscribe {
-                                progress.dismiss()
-                                ImageHelper.roundImageView(it.first, 50)
+                                ChatListItem(ll, applicationContext).create(it)
+                                val space = Space(applicationContext)
+                                space.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 10)
+                                ll.addView(space)
                             }
 
                         }
@@ -135,9 +117,12 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             }
             R.id.nav_logout -> {
                 inBackground(getHttp("http://test.joshuabakerg.co.za/services/user/logout"))
-                        .subscribe {
-                            requestLogin()
-                        }
+                        .subscribe {}
+                val fourdustSharedPreferences = getSharedPreferences("fourdust", Context.MODE_PRIVATE)
+                val edit = fourdustSharedPreferences.edit()
+                edit.putString("sessionid", null)
+                edit.commit()
+                requestLogin()
             }
         }
         println("took ${System.currentTimeMillis() - start} to finish sidebar")
@@ -147,8 +132,19 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
     override fun onResume() {
         super.onResume()
+        if(UserSession.instance.sessionID != null){
+            chatService.getChatDetailsCache()
+                    .subscribeOn(Schedulers.io())
+                    .subscribe {
+                        it.forEach {
+                            it.userDetails.values.forEach {
+                                it.getImageBitmap()?.subscribe {}
+                            }
+                        }
+                    }
+        }
         val user = UserSession.instance.user
-        if (user !== null) {
+        /*if (user !== null) {
             var name = traverse<String>(user, "name/first") + " " + traverse<String>(user, "name/last")
             var email = traverse<String>(user, "email")
             if (!TextUtils.isEmpty(name) && !TextUtils.isEmpty(email)) {
@@ -162,7 +158,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                             ImageHelper.roundImageView(it, 50)
                         }
             }
-        }
+        }*/
     }
 
     private fun requestLogin() {
