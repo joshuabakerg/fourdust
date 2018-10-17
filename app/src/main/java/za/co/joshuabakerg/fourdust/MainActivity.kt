@@ -1,5 +1,6 @@
 package za.co.joshuabakerg.fourdust
 
+import android.app.ProgressDialog
 import android.content.Intent
 import android.os.Bundle
 import android.support.design.widget.NavigationView
@@ -8,27 +9,28 @@ import android.support.v4.view.GravityCompat
 import android.support.v7.app.ActionBarDrawerToggle
 import android.support.v7.app.AppCompatActivity
 import android.text.TextUtils
+import android.view.Gravity
 import android.view.Menu
 import android.view.MenuItem
-import android.view.ViewGroup
 import android.widget.ImageView
-import io.reactivex.Flowable
+import android.widget.LinearLayout
+import android.widget.TextView
 import io.reactivex.schedulers.Schedulers
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.app_bar_main.*
 import kotlinx.android.synthetic.main.content_main.*
 import kotlinx.android.synthetic.main.nav_header_main.*
-import za.co.joshuabakerg.fourdust.R.id.ll
+import org.w3c.dom.Text
 import za.co.joshuabakerg.fourdust.utils.*
 
+
 class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
+
+    private lateinit var chatService: ChatService
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        if (UserSession.instance.user === null) {
-            requestLogin()
-        }
         setSupportActionBar(toolbar)
         fab.setOnClickListener { view ->
             Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
@@ -41,6 +43,8 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         toggle.syncState()
 
         nav_view.setNavigationItemSelectedListener(this)
+        chatService = ChatService.instance
+        requestLogin()
     }
 
     override fun onBackPressed() {
@@ -69,46 +73,50 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
         // Handle navigation view item clicks here.
+        val start = System.currentTimeMillis()
         when (item.itemId) {
             R.id.nav_camera -> {
+                val start = System.currentTimeMillis()
+                val progress = ProgressDialog(this)
+                progress.setTitle("Loading")
+                progress.setMessage("Wait while loading...")
+                progress.setCancelable(false)
+                progress.show()
+                println("took ${System.currentTimeMillis() - start} to create progress bar")
+                inBackground(chatService.getChatDetails().subscribeOn(Schedulers.io()))
+                        .subscribe {
+                            val imageLoads = ArrayList<Pair<String, ImageView>>()
+                            ll.removeAllViews()
+                            it.forEach {
+                                //Image
+                                val image = it.userDetails[it.mainUser]?.image
+                                val imageView = ImageView(applicationContext)
+                                imageView.layoutParams = LinearLayout.LayoutParams(150, 150)
+                                imageView.setImageResource(R.drawable.unknown)
+                                imageLoads.add(Pair(image!!, imageView))
 
-                var start = System.currentTimeMillis()
-                inBackground(
-                        getHttp("http://test.joshuabakerg.co.za/services/chat/", LinkedHashMap::class.java)
-                ).map {
-                    traverse<List<*>>(it, "chat")
-                }.subscribe {
-                    start = System.currentTimeMillis();
-                    val flowables = it!!.map {
-                        with(it as LinkedHashMap<String, Any>) {
-                            val mainUser = this["mainUser"] as String
-                            traverse<String>(this, "userDetails/$mainUser/image")
-                        }
-                    }.map {
-                        println(it)
-                        val url = it
-                        fetchImage(url!!)
-                                .map {
-                                    object {
-                                        val bitmap = it
-                                        val url = url
-                                    }
-                                }
-                    }
-                    println(flowables)
-                    inBackground(Flowable.fromIterable(flowables)
-                            .flatMap {
-                                it.subscribeOn(Schedulers.io())
+                                //Name
+                                val name = it.userDetails[it.mainUser]?.name
+                                val textView = TextView(applicationContext)
+                                textView.textSize = 20f
+                                textView.text = name
+                                textView.gravity = Gravity.CENTER_VERTICAL
+
+                                //Container
+                                val linearLayout = LinearLayout(applicationContext)
+                                linearLayout.orientation = LinearLayout.HORIZONTAL
+
+                                linearLayout.addView(imageView)
+                                linearLayout.addView(textView)
+
+                                ll.addView(linearLayout)
                             }
-                    ).subscribe {
-                        println("Took ${System.currentTimeMillis()-start} to download all images")
-                        val imageView = ImageView(applicationContext)
-                        imageView.setImageBitmap(it.bitmap)
-                        imageView.layoutParams = ViewGroup.LayoutParams(200, 200)
-                        ll.addView(imageView)
-                    }
-                }
-                println("after")
+                            applyUrlToImages(imageLoads).subscribe {
+                                progress.dismiss()
+                                ImageHelper.roundImageView(it.first, 50)
+                            }
+
+                        }
             }
             R.id.nav_gallery -> {
 
@@ -126,11 +134,13 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
             }
             R.id.nav_logout -> {
-                UserSession.instance.user = null
-                requestLogin()
+                inBackground(getHttp("http://test.joshuabakerg.co.za/services/user/logout"))
+                        .subscribe {
+                            requestLogin()
+                        }
             }
         }
-
+        println("took ${System.currentTimeMillis() - start} to finish sidebar")
         drawer_layout.closeDrawer(GravityCompat.START)
         return true
     }
@@ -147,17 +157,15 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             }
             val imageUrl = traverse<String>(user, "picture/thumbnail")
             if (imageUrl != null) {
-                fetchImage(imageUrl)
-                        .subscribeOn(Schedulers.io())
-                        .blockingSubscribe {
-                            val roundedCornerBitmap = ImageHelper.getRoundedCornerBitmap(it, 20)
-                            imageView.setImageBitmap(roundedCornerBitmap)
+                applyUrlToImage(imageUrl, imageView)
+                        .subscribe {
+                            ImageHelper.roundImageView(it, 50)
                         }
             }
         }
     }
 
-    fun requestLogin() {
+    private fun requestLogin() {
         val intent = Intent(this, LoginActivity::class.java)
         startActivity(intent)
     }

@@ -7,12 +7,13 @@ import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.graphics.drawable.BitmapDrawable;
 import android.widget.ImageView;
 
 public class ImageHelper {
 
     public static void roundImageView(ImageView imageView, int pixels){
-        Bitmap originalBitmap = imageView.getDrawingCache();
+        Bitmap originalBitmap = ((BitmapDrawable)imageView.getDrawable()).getBitmap();
         Bitmap roundedCornerBitmap = getRoundedCornerBitmap(originalBitmap, pixels);
         imageView.setImageBitmap(roundedCornerBitmap);
 

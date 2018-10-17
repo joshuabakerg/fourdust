@@ -1,37 +1,41 @@
 package za.co.joshuabakerg.fourdust
 
+import android.Manifest.permission.READ_CONTACTS
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.annotation.TargetApi
-import android.content.pm.PackageManager
-import android.support.design.widget.Snackbar
-import android.support.v7.app.AppCompatActivity
+import android.app.Activity
 import android.app.LoaderManager.LoaderCallbacks
+import android.content.Context
 import android.content.CursorLoader
 import android.content.Loader
+import android.content.pm.PackageManager
 import android.database.Cursor
 import android.net.Uri
 import android.os.AsyncTask
 import android.os.Build
 import android.os.Bundle
 import android.provider.ContactsContract
+import android.support.design.widget.Snackbar
+import android.support.v7.app.AppCompatActivity
 import android.text.TextUtils
+import android.util.Log
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.ArrayAdapter
 import android.widget.TextView
-
-import java.util.ArrayList
-import android.Manifest.permission.READ_CONTACTS
-import android.util.Log
 import com.fasterxml.jackson.databind.ObjectMapper
-
+import io.reactivex.schedulers.Schedulers
 import kotlinx.android.synthetic.main.activity_login.*
 import okhttp3.MediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
+import za.co.joshuabakerg.fourdust.utils.getHttp
+import za.co.joshuabakerg.fourdust.utils.inBackground
 import za.co.joshuabakerg.fourdust.utils.traverse
+import java.util.ArrayList
+import kotlin.collections.LinkedHashMap
 
 /**
  * A login screen that offers login via email/password.
@@ -56,6 +60,32 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
         })
 
         email_sign_in_button.setOnClickListener { attemptLogin() }
+        checkLoginState()
+    }
+
+    private fun checkLoginState() {
+        val start = System.currentTimeMillis()
+        val fourdustSharedPreferences = getSharedPreferences("fourdust", Context.MODE_PRIVATE)
+        val sessionid = fourdustSharedPreferences.getString("sessionid", null)
+        if (sessionid != null) {
+            UserSession.instance.sessionID = sessionid
+            showProgress(true)
+            inBackground(getHttp("http://test.joshuabakerg.co.za/services/user")
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(Schedulers.io())
+            ).subscribe {
+                println(it)
+                if (!TextUtils.isEmpty(it)) {
+                    val objectMapper = ObjectMapper()
+                    val user = objectMapper.readValue(it, LinkedHashMap::class.java)
+                    UserSession.instance.user = user as LinkedHashMap<String, Object>
+                    setResult(Activity.RESULT_OK)
+                    finish()
+                }
+                showProgress(false)
+            }
+        }
+        println("Took ${System.currentTimeMillis() - start} to finish checkLoginState")
     }
 
     private fun populateAutoComplete() {
@@ -271,7 +301,7 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
             Log.i("RESPONSE", resBody)
             val resObj = OBJECT_MAPPER.readValue(resBody, LinkedHashMap::class.java)
             val success = resObj["success"] as Boolean
-            if(success){
+            if (success) {
                 val user = resObj["user"] as Map<String, Object>
                 val name = traverse<String>(user, "name/first")
                 Log.i("NAME", name)
@@ -288,6 +318,11 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
             showProgress(false)
 
             if (success!!) {
+                val fourdustSharedPreferences = getSharedPreferences("fourdust", Context.MODE_PRIVATE)
+                val edit = fourdustSharedPreferences.edit()
+                edit.putString("sessionid", UserSession.instance.sessionID)
+                edit.commit()
+                setResult(Activity.RESULT_OK)
                 finish()
             } else {
                 password.error = getString(R.string.error_incorrect_password)
