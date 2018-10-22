@@ -6,6 +6,8 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import io.reactivex.BackpressureStrategy
+import io.reactivex.Flowable
 import za.co.joshuabakerg.fourdust.ChatDetails
 import za.co.joshuabakerg.fourdust.R
 import za.co.joshuabakerg.fourdust.utils.ImageHelper
@@ -14,7 +16,7 @@ import za.co.joshuabakerg.fourdust.utils.applyUrlToImage
 class ChatListItem internal constructor(private val attachTo: ViewGroup, private val context: Context) {
 
 
-    fun create(chatDetails: ChatDetails) {
+    fun create(chatDetails: ChatDetails): Flowable<ChatDetails> {
 
         val image = chatDetails.userDetails[chatDetails.mainUser]?.image
         val imageView = ImageView(context)
@@ -58,6 +60,12 @@ class ChatListItem internal constructor(private val attachTo: ViewGroup, private
         linearLayout.addView(imageView)
         linearLayout.addView(nameLayout)
         attachTo.addView(linearLayout)
+        return Flowable.create({
+            val emitter = it
+            linearLayout.setOnClickListener {
+                emitter.onNext(chatDetails)
+            }
+        }, BackpressureStrategy.BUFFER)
     }
 
 }

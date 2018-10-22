@@ -15,10 +15,7 @@ import android.view.Gravity
 import android.view.Menu
 import android.view.MenuItem
 import android.view.ViewGroup
-import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.Space
-import android.widget.TextView
+import android.widget.*
 import io.reactivex.schedulers.Schedulers
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.app_bar_main.*
@@ -81,24 +78,20 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         when (item.itemId) {
             R.id.nav_camera -> {
                 val start = System.currentTimeMillis()
-                val progress = ProgressDialog(this)
-                progress.setTitle("Loading")
-                progress.setMessage("Wait while loading...")
-                progress.setCancelable(false)
-                progress.show()
                 println("took ${System.currentTimeMillis() - start} to create progress bar")
                 inBackground(chatService.getChatDetailsCache().subscribeOn(Schedulers.io()))
                         .subscribe {
-                            progress.cancel()
                             ll.removeAllViews()
                             it.forEach {
-                                ChatListItem(ll, applicationContext).create(it)
+                                ChatListItem(ll, applicationContext)
+                                        .create(it)
+                                        .subscribe(this::onChatClicked)
                                 val space = Space(applicationContext)
                                 space.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 10)
                                 ll.addView(space)
                             }
-
                         }
+
             }
             R.id.nav_gallery -> {
 
@@ -128,6 +121,24 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         println("took ${System.currentTimeMillis() - start} to finish sidebar")
         drawer_layout.closeDrawer(GravityCompat.START)
         return true
+    }
+
+    fun onChatClicked(chatDetails: ChatDetails){
+        println("Chat clicked")
+        inBackground(chatService.getMessages(chatDetails.messages!!))
+                .subscribe {
+                    ll.removeAllViews()
+                    it.forEach {
+                        val textView = TextView(applicationContext)
+                        textView.text = "${it.from}:\t${it.content}".removeSuffix("\n")
+                        ll.addView(textView)
+                        println(it.content)
+                    }
+                    val editText = EditText(applicationContext)
+                    editText.hint = "Type a message"
+                    editText.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+                    ll.addView(editText)
+                }
     }
 
     override fun onResume() {

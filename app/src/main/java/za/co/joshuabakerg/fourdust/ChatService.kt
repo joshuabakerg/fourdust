@@ -13,7 +13,7 @@ class ChatService private constructor(){
 
     fun getChatDetailsCache(): Flowable<List<ChatDetails>> {
         val age = (System.currentTimeMillis() - cacheDOB)
-        println("Age og cache ${age}")
+        println("Age of cache ${age}")
         return if(cachedChatDetails != null &&  age < 1000000){
             Flowable.just(cachedChatDetails)
         }else {
@@ -30,7 +30,19 @@ class ChatService private constructor(){
                         cacheDOB = System.currentTimeMillis()
                         it.chat
                     } else {
-                        throw ServiceException("Falied to get chat details [${it.message}]")
+                        throw ServiceException("Failed to get chat details [${it.message}]")
+                    }
+                }
+    }
+
+    fun getMessages(messageId: String): Flowable<List<ChatMessage>> {
+        val url = "http://test.joshuabakerg.co.za/services/chat/messages/$messageId"
+        return getHttp(url, ChatMessagesResponse::class.java)
+                .map {
+                    if (it.success!!) {
+                        it.messages
+                    } else {
+                        throw ServiceException("Failed to get chat details [${it.message}]")
                     }
                 }
     }
@@ -45,9 +57,12 @@ class ChatService private constructor(){
 
 }
 
-class ChatDetailsResponse {
+open class BasicResponse {
     var success: Boolean? = null
     var message: String? = null
+}
+
+class ChatDetailsResponse : BasicResponse() {
     var chat: List<ChatDetails> = ArrayList()
 }
 
@@ -85,4 +100,15 @@ class UserDetails {
             return null
         }
     }
+}
+
+class ChatMessagesResponse : BasicResponse(){
+    val messages: List<ChatMessage> = ArrayList()
+}
+
+class ChatMessage{
+    val from: String? = null
+    val content: String? = null
+    val pic: String? = null
+    val time: Long? = null
 }
