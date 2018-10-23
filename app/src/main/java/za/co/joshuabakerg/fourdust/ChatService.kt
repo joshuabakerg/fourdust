@@ -5,34 +5,21 @@ import io.reactivex.Flowable
 import za.co.joshuabakerg.fourdust.Exception.ServiceException
 import za.co.joshuabakerg.fourdust.utils.fetchImageCache
 import za.co.joshuabakerg.fourdust.utils.getHttp
+import za.co.joshuabakerg.fourdust.utils.postHttp
 
 class ChatService private constructor(){
 
     private var cacheDOB = System.currentTimeMillis()
     private var cachedChatDetails: List<ChatDetails>? = null
 
-    fun getChatDetailsCache(): Flowable<List<ChatDetails>> {
+    fun getChatDetails(useCache: Boolean = false): Flowable<List<ChatDetails>> {
         val age = (System.currentTimeMillis() - cacheDOB)
-        println("Age of cache ${age}")
-        return if(cachedChatDetails != null &&  age < 1000000){
+        return if(useCache && cachedChatDetails != null &&  age < 1000000){
+            println("Age of cache ${age}")
             Flowable.just(cachedChatDetails)
         }else {
-            getChatDetails()
+            getChatDetailsInteral()
         }
-    }
-
-    fun getChatDetails(): Flowable<List<ChatDetails>> {
-        val url = "http://test.joshuabakerg.co.za/services/chat/"
-        return getHttp(url, ChatDetailsResponse::class.java)
-                .map {
-                    if (it.success!!) {
-                        cachedChatDetails = it.chat
-                        cacheDOB = System.currentTimeMillis()
-                        it.chat
-                    } else {
-                        throw ServiceException("Failed to get chat details [${it.message}]")
-                    }
-                }
     }
 
     fun getMessages(messageId: String): Flowable<List<ChatMessage>> {
@@ -41,6 +28,29 @@ class ChatService private constructor(){
                 .map {
                     if (it.success!!) {
                         it.messages
+                    } else {
+                        throw ServiceException("Failed to get chat details [${it.message}]")
+                    }
+                }
+    }
+
+    fun sendMessage(convId: String, message: String): Flowable<java.util.LinkedHashMap<*, *>> {
+
+        val req = object{
+            val content = message
+        }
+        val url = "http://test.joshuabakerg.co.za/services/chat/conversation/$convId"
+        return postHttp(url, req, LinkedHashMap::class.java)
+    }
+
+    private fun getChatDetailsInteral(): Flowable<List<ChatDetails>> {
+        val url = "http://test.joshuabakerg.co.za/services/chat/"
+        return getHttp(url, ChatDetailsResponse::class.java)
+                .map {
+                    if (it.success!!) {
+                        cachedChatDetails = it.chat
+                        cacheDOB = System.currentTimeMillis()
+                        it.chat
                     } else {
                         throw ServiceException("Failed to get chat details [${it.message}]")
                     }

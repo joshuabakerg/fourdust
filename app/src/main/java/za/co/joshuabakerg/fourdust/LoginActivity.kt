@@ -15,6 +15,7 @@ import android.net.Uri
 import android.os.AsyncTask
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
 import android.provider.ContactsContract
 import android.support.design.widget.Snackbar
 import android.support.v7.app.AppCompatActivity
@@ -32,7 +33,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import za.co.joshuabakerg.fourdust.utils.getHttp
-import za.co.joshuabakerg.fourdust.utils.inBackground
 import za.co.joshuabakerg.fourdust.utils.traverse
 import java.util.ArrayList
 import kotlin.collections.LinkedHashMap
@@ -70,20 +70,23 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
         if (sessionid != null) {
             UserSession.instance.sessionID = sessionid
             showProgress(true)
-            inBackground(getHttp("http://test.joshuabakerg.co.za/services/user")
+            getHttp("http://test.joshuabakerg.co.za/services/user")
                     .subscribeOn(Schedulers.io())
                     .observeOn(Schedulers.io())
-            ).subscribe {
-                println(it)
-                if (!TextUtils.isEmpty(it)) {
-                    val objectMapper = ObjectMapper()
-                    val user = objectMapper.readValue(it, LinkedHashMap::class.java)
-                    UserSession.instance.user = user as LinkedHashMap<String, Object>
-                    setResult(Activity.RESULT_OK)
-                    finish()
-                }
-                showProgress(false)
-            }
+                    .subscribe {
+                        println(it)
+                        if (!TextUtils.isEmpty(it)) {
+                            val objectMapper = ObjectMapper()
+                            val user = objectMapper.readValue(it, LinkedHashMap::class.java)
+                            UserSession.instance.user = user as LinkedHashMap<String, Object>
+                            setResult(Activity.RESULT_OK)
+                            finish()
+                        }
+                        val handler = Handler(applicationContext.mainLooper)
+                        handler.post {
+                            showProgress(false)
+                        }
+                    }
         }
         println("Took ${System.currentTimeMillis() - start} to finish checkLoginState")
     }

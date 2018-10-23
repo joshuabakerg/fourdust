@@ -12,11 +12,10 @@ import android.widget.ImageView;
 
 public class ImageHelper {
 
-    public static void roundImageView(ImageView imageView, int pixels){
-        Bitmap originalBitmap = ((BitmapDrawable)imageView.getDrawable()).getBitmap();
-        Bitmap roundedCornerBitmap = getRoundedCornerBitmap(originalBitmap, pixels);
+    public static void roundImageView(final ImageView imageView, int pixels) {
+        Bitmap originalBitmap = ((BitmapDrawable) imageView.getDrawable()).getBitmap();
+        final Bitmap roundedCornerBitmap = getRoundedCornerBitmap(originalBitmap, pixels);
         imageView.setImageBitmap(roundedCornerBitmap);
-
     }
 
     public static Bitmap getRoundedCornerBitmap(Bitmap bitmap, int pixels) {

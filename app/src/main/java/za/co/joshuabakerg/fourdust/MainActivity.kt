@@ -1,17 +1,15 @@
 package za.co.joshuabakerg.fourdust
 
-import android.app.ProgressDialog
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
 import android.os.Bundle
+import android.os.Handler
 import android.support.design.widget.NavigationView
 import android.support.design.widget.Snackbar
 import android.support.v4.view.GravityCompat
 import android.support.v7.app.ActionBarDrawerToggle
 import android.support.v7.app.AppCompatActivity
-import android.text.TextUtils
-import android.view.Gravity
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.ViewGroup
@@ -27,10 +25,28 @@ import za.co.joshuabakerg.fourdust.utils.*
 
 class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
 
+    enum class AppSate {
+        MAIN,
+        IN_CHATS,
+        IN_MESSAGE
+    }
+
+    private var currentState = AppSate.MAIN
+    private var backFlow = HashMap<AppSate, AppSate>()
+    private var methodForState = HashMap<AppSate, () -> Unit>()
+
+
     private lateinit var chatService: ChatService
+    private lateinit var handler: Handler
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        backFlow[AppSate.IN_MESSAGE] = AppSate.IN_CHATS
+        backFlow[AppSate.IN_CHATS] = AppSate.MAIN
+        methodForState[AppSate.IN_CHATS] = this::displayAllchats
+        methodForState[AppSate.MAIN] = this::displayMain
+
         setContentView(R.layout.activity_main)
         setSupportActionBar(toolbar)
         fab.setOnClickListener { view ->
@@ -44,7 +60,9 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         toggle.syncState()
 
         nav_view.setNavigationItemSelectedListener(this)
+
         chatService = ChatService.instance
+        handler = Handler(applicationContext.mainLooper)
         requestLogin()
     }
 
@@ -52,7 +70,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         if (drawer_layout.isDrawerOpen(GravityCompat.START)) {
             drawer_layout.closeDrawer(GravityCompat.START)
         } else {
-            super.onBackPressed()
+            goBackAndRun()
         }
     }
 
@@ -77,20 +95,6 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         val start = System.currentTimeMillis()
         when (item.itemId) {
             R.id.nav_camera -> {
-                val start = System.currentTimeMillis()
-                println("took ${System.currentTimeMillis() - start} to create progress bar")
-                inBackground(chatService.getChatDetailsCache().subscribeOn(Schedulers.io()))
-                        .subscribe {
-                            ll.removeAllViews()
-                            it.forEach {
-                                ChatListItem(ll, applicationContext)
-                                        .create(it)
-                                        .subscribe(this::onChatClicked)
-                                val space = Space(applicationContext)
-                                space.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 10)
-                                ll.addView(space)
-                            }
-                        }
 
             }
             R.id.nav_gallery -> {
@@ -106,7 +110,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
             }
             R.id.nav_send -> {
-
+                displayAllchats()
             }
             R.id.nav_logout -> {
                 inBackground(getHttp("http://test.joshuabakerg.co.za/services/user/logout"))
@@ -123,53 +127,114 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         return true
     }
 
-    fun onChatClicked(chatDetails: ChatDetails){
-        println("Chat clicked")
-        inBackground(chatService.getMessages(chatDetails.messages!!))
+    private fun goBackAndRun() {
+        val backState = backFlow[currentState]
+        if (backState != null) {
+            val function = methodForState[backState]
+            if (function != null) {
+                function()
+            } else {
+                Log.e(this.javaClass.name, "There is no state command for $backState")
+            }
+        } else {
+            super.onBackPressed()
+        }
+    }
+
+    private fun displayAllchats() {
+        currentState = AppSate.IN_CHATS
+        val start = System.currentTimeMillis()
+        println("took ${System.currentTimeMillis() - start} to create progress bar")
+        ll.removeAllViews()
+        chatService.getChatDetails(true)
+                .subscribeOn(Schedulers.io())
                 .subscribe {
-                    ll.removeAllViews()
+                    it.forEach {
+                        ChatListItem(ll, applicationContext)
+                                .create(it)
+                                .subscribe(this::onChatClicked)
+                        val space = Space(applicationContext)
+                        space.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 10)
+                        handler.post {
+                            ll.addView(space)
+                        }
+                    }
+
+                }
+    }
+
+    private fun onChatClicked(chatDetails: ChatDetails) {
+        currentState = AppSate.IN_MESSAGE
+        println("Chat clicked")
+        handler.post {
+            ll.removeAllViews()
+        }
+        chatService.getMessages(chatDetails.messages!!)
+                .subscribeOn(Schedulers.io())
+                .subscribe {
                     it.forEach {
                         val textView = TextView(applicationContext)
                         textView.text = "${it.from}:\t${it.content}".removeSuffix("\n")
-                        ll.addView(textView)
+                        handler.post {
+                            ll.addView(textView)
+                        }
                         println(it.content)
                     }
                     val editText = EditText(applicationContext)
                     editText.hint = "Type a message"
                     editText.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-                    ll.addView(editText)
+
+                    val button = Button(applicationContext)
+                    button.text = "Send"
+                    button.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+
+                    button.setOnClickListener {
+                        if (chatDetails.id != null) {
+                            chatService.sendMessage(chatDetails.id!!, editText.text.toString())
+                                    .subscribeOn(Schedulers.io())
+                                    .subscribe()
+                            editText.text.clear()
+                        }
+                    }
+
+                    handler.post {
+                        ll.addView(editText)
+                        ll.addView(button)
+                    }
                 }
+    }
+
+    private fun displayMain() {
+        currentState = AppSate.MAIN
+        ll.removeAllViews()
     }
 
     override fun onResume() {
         super.onResume()
-        if(UserSession.instance.sessionID != null){
-            chatService.getChatDetailsCache()
+        val userStorage = UserSession.instance.user
+        if (userStorage !== null) {
+            getHttp("http://test.joshuabakerg.co.za/services/user/", LinkedHashMap::class.java)
                     .subscribeOn(Schedulers.io())
                     .subscribe {
-                        it.forEach {
-                            it.userDetails.values.forEach {
-                                it.getImageBitmap()?.subscribe {}
-                            }
+                        val user = it
+                        var name = traverse<String>(user, "name/first") + " " + traverse<String>(user, "name/last")
+                        var email = traverse<String>(user, "email")
+
+                        handler.post {
+                            nameText.text = name
+                            textView.text = email
+                        }
+                        val imageUrl = traverse<String>(user, "picture/thumbnail")
+                        if (imageUrl != null) {
+                            applyUrlToImage(imageUrl, imageView, handler)
+                                    .subscribe {
+                                        handler.post {
+                                            ImageHelper.roundImageView(it, 50)
+                                        }
+                                    }
                         }
                     }
         }
-        val user = UserSession.instance.user
-        /*if (user !== null) {
-            var name = traverse<String>(user, "name/first") + " " + traverse<String>(user, "name/last")
-            var email = traverse<String>(user, "email")
-            if (!TextUtils.isEmpty(name) && !TextUtils.isEmpty(email)) {
-                nameText.text = name
-                textView.text = email
-            }
-            val imageUrl = traverse<String>(user, "picture/thumbnail")
-            if (imageUrl != null) {
-                applyUrlToImage(imageUrl, imageView)
-                        .subscribe {
-                            ImageHelper.roundImageView(it, 50)
-                        }
-            }
-        }*/
     }
 
     private fun requestLogin() {

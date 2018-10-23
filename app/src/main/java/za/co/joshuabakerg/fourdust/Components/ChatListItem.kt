@@ -2,6 +2,7 @@ package za.co.joshuabakerg.fourdust.Components
 
 import android.content.Context
 import android.graphics.Color
+import android.os.Handler
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -18,14 +19,17 @@ class ChatListItem internal constructor(private val attachTo: ViewGroup, private
 
     fun create(chatDetails: ChatDetails): Flowable<ChatDetails> {
 
+        val handler = Handler(context.mainLooper)
+
         val image = chatDetails.userDetails[chatDetails.mainUser]?.image
         val imageView = ImageView(context)
         imageView.layoutParams = LinearLayout.LayoutParams(150, 150)
         imageView.setImageResource(R.drawable.unknown)
-//        imageLoads.add(Pair(image!!, imageView))
-        applyUrlToImage(image!!, imageView)
+        applyUrlToImage(image!!, imageView, handler)
                 .subscribe {
-                    ImageHelper.roundImageView(it, 50)
+                    handler.post{
+                        ImageHelper.roundImageView(it, 50)
+                    }
                 }
 
         //Name Container
@@ -59,7 +63,9 @@ class ChatListItem internal constructor(private val attachTo: ViewGroup, private
 
         linearLayout.addView(imageView)
         linearLayout.addView(nameLayout)
-        attachTo.addView(linearLayout)
+        handler.post {
+            attachTo.addView(linearLayout)
+        }
         return Flowable.create({
             val emitter = it
             linearLayout.setOnClickListener {
