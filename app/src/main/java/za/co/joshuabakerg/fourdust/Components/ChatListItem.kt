@@ -11,8 +11,7 @@ import io.reactivex.BackpressureStrategy
 import io.reactivex.Flowable
 import za.co.joshuabakerg.fourdust.ChatDetails
 import za.co.joshuabakerg.fourdust.R
-import za.co.joshuabakerg.fourdust.utils.ImageHelper
-import za.co.joshuabakerg.fourdust.utils.applyUrlToImage
+import za.co.joshuabakerg.fourdust.setImageURL
 
 class ChatListItem internal constructor(private val attachTo: ViewGroup, private val context: Context) {
 
@@ -25,13 +24,7 @@ class ChatListItem internal constructor(private val attachTo: ViewGroup, private
         val imageView = ImageView(context)
         imageView.layoutParams = LinearLayout.LayoutParams(150, 150)
         imageView.setImageResource(R.drawable.unknown)
-        applyUrlToImage(image!!, imageView, handler)
-                .subscribe {
-                    handler.post{
-                        ImageHelper.roundImageView(it, 50)
-                    }
-                }
-
+        imageView.setImageURL(image!!, true)
         //Name Container
         val nameLayout = LinearLayout(context)
         nameLayout.orientation = LinearLayout.VERTICAL

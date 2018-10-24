@@ -20,8 +20,9 @@ import kotlinx.android.synthetic.main.app_bar_main.*
 import kotlinx.android.synthetic.main.content_main.*
 import kotlinx.android.synthetic.main.nav_header_main.*
 import za.co.joshuabakerg.fourdust.Components.ChatListItem
-import za.co.joshuabakerg.fourdust.utils.*
-
+import za.co.joshuabakerg.fourdust.utils.getHttp
+import za.co.joshuabakerg.fourdust.utils.inBackground
+import za.co.joshuabakerg.fourdust.utils.traverse
 
 class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
 
@@ -165,10 +166,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
     private fun onChatClicked(chatDetails: ChatDetails) {
         currentState = AppSate.IN_MESSAGE
-        println("Chat clicked")
-        handler.post {
-            ll.removeAllViews()
-        }
+        ll.removeAllViews()
         chatService.getMessages(chatDetails.messages!!)
                 .subscribeOn(Schedulers.io())
                 .subscribe {
@@ -196,7 +194,6 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                             editText.text.clear()
                         }
                     }
-
                     handler.post {
                         ll.addView(editText)
                         ll.addView(button)
@@ -215,23 +212,16 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         if (userStorage !== null) {
             getHttp("http://test.joshuabakerg.co.za/services/user/", LinkedHashMap::class.java)
                     .subscribeOn(Schedulers.io())
-                    .subscribe {
+                    .subscribeAndPost(applicationContext) {
                         val user = it
                         var name = traverse<String>(user, "name/first") + " " + traverse<String>(user, "name/last")
                         var email = traverse<String>(user, "email")
 
-                        handler.post {
-                            nameText.text = name
-                            textView.text = email
-                        }
+                        nameText.text = name
+                        textView.text = email
                         val imageUrl = traverse<String>(user, "picture/thumbnail")
                         if (imageUrl != null) {
-                            applyUrlToImage(imageUrl, imageView, handler)
-                                    .subscribe {
-                                        handler.post {
-                                            ImageHelper.roundImageView(it, 50)
-                                        }
-                                    }
+                            imageView.setImageURL(imageUrl, true)
                         }
                     }
         }

@@ -14,11 +14,11 @@ import io.reactivex.schedulers.Schedulers
 import okhttp3.MediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
 import za.co.joshuabakerg.fourdust.UserSession
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
-import okhttp3.RequestBody
 
 val JSON = MediaType.parse("application/json; charset=utf-8")
 
@@ -71,14 +71,16 @@ fun applyUrlToImage(url: String, imageView: ImageView, useHandler: Handler? = nu
             emitter.onComplete()
         } else {
             fetchImage(url).subscribeOn(Schedulers.io())
-                    .subscribe {
+                    .subscribe({
                         cachedImages[url] = it
                         handler.post{
                             imageView.setImageBitmap(it)
                         }
                         emitter.onNext(imageView)
                         emitter.onComplete()
-                    }
+                    }, {
+                        emitter.onError(it)
+                    })
         }
     }, BackpressureStrategy.BUFFER)
 }
