@@ -45,7 +45,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         backFlow[AppSate.IN_MESSAGE] = AppSate.IN_CHATS
         backFlow[AppSate.IN_CHATS] = AppSate.MAIN
-        methodForState[AppSate.IN_CHATS] = this::displayAllchats
+        methodForState[AppSate.IN_CHATS] = this::displayAllChats
         methodForState[AppSate.MAIN] = this::displayMain
 
         setContentView(R.layout.activity_main)
@@ -96,7 +96,8 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         val start = System.currentTimeMillis()
         when (item.itemId) {
             R.id.nav_camera -> {
-
+                val intent = Intent(applicationContext, ChatActivity::class.java)
+                startActivity(intent)
             }
             R.id.nav_gallery -> {
 
@@ -111,7 +112,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
             }
             R.id.nav_send -> {
-                displayAllchats()
+                displayAllChats()
             }
             R.id.nav_logout -> {
                 inBackground(getHttp("http://test.joshuabakerg.co.za/services/user/logout"))
@@ -135,14 +136,14 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             if (function != null) {
                 function()
             } else {
-                Log.e(this.javaClass.name, "There is no state command for $backState")
+                Log.e(this::class.java.name, "There is no state command for $backState")
             }
         } else {
             super.onBackPressed()
         }
     }
 
-    private fun displayAllchats() {
+    private fun displayAllChats() {
         currentState = AppSate.IN_CHATS
         val start = System.currentTimeMillis()
         println("took ${System.currentTimeMillis() - start} to create progress bar")
@@ -153,7 +154,14 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                     it.forEach {
                         ChatListItem(ll, applicationContext)
                                 .create(it)
-                                .subscribe(this::onChatClicked)
+                                .subscribe{
+                                    val intent = Intent(applicationContext, ChatActivity::class.java)
+                                    val mainUser = it.userDetails[it.mainUser]
+                                    intent.putExtra("name", mainUser?.name)
+                                    intent.putExtra("image",mainUser?.image)
+                                    intent.putExtra("convid", it.id)
+                                    startActivity(intent)
+                                }
                         val space = Space(applicationContext)
                         space.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 10)
                         handler.post {
