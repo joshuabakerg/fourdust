@@ -159,7 +159,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                                     val mainUser = it.userDetails[it.mainUser]
                                     intent.putExtra("name", mainUser?.name)
                                     intent.putExtra("image",mainUser?.image)
-                                    intent.putExtra("convid", it.id)
+                                    intent.putExtra("messagesId", it.messages)
                                     startActivity(intent)
                                 }
                         val space = Space(applicationContext)

@@ -18,6 +18,9 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
+            <ImageView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center_vertical"
+                android:onClick="onBackClicked" app:srcCompat="?attr/homeAsUpIndicator" />
+
             <ImageView
                 android:id="@+id/imageView3"
                 android:layout_width="50dp"
@@ -28,8 +31,7 @@
 
             <android.support.v7.widget.Toolbar
                 android:id="@+id/toolbar"
-                android:layout_width="0dp"
-                android:layout_weight=".80"
+                android:layout_width="0dp" android:layout_weight=".70"
                 android:layout_height="?attr/actionBarSize"
                 android:background="?attr/colorPrimary"
                 app:popupTheme="@style/AppTheme.PopupOverlay"/>
