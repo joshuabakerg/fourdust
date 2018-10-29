@@ -22,6 +22,7 @@ import kotlinx.android.synthetic.main.nav_header_main.*
 import za.co.joshuabakerg.fourdust.Components.ChatListItem
 import za.co.joshuabakerg.fourdust.utils.getHttp
 import za.co.joshuabakerg.fourdust.utils.inBackground
+import za.co.joshuabakerg.fourdust.utils.putExtra
 import za.co.joshuabakerg.fourdust.utils.traverse
 
 class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
@@ -51,7 +52,8 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         setContentView(R.layout.activity_main)
         setSupportActionBar(toolbar)
         fab.setOnClickListener { view ->
-            Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
+            displayAllChats()
+            Snackbar.make(view, "Showing all chats", Snackbar.LENGTH_LONG)
                     .setAction("Action", null).show()
         }
 
@@ -156,10 +158,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                                 .create(it)
                                 .subscribe{
                                     val intent = Intent(applicationContext, ChatActivity::class.java)
-                                    val mainUser = it.userDetails[it.mainUser]
-                                    intent.putExtra("name", mainUser?.name)
-                                    intent.putExtra("image",mainUser?.image)
-                                    intent.putExtra("messagesId", it.messages)
+                                    putExtra(intent, it)
                                     startActivity(intent)
                                 }
                         val space = Space(applicationContext)

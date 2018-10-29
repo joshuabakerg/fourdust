@@ -117,8 +117,8 @@ class ChatMessagesResponse : BasicResponse(){
 }
 
 class ChatMessage{
-    val from: String? = null
-    val content: String? = null
-    val pic: String? = null
-    val time: Long? = null
+    var from: String? = null
+    var content: String? = null
+    var pic: String? = null
+    var time: Long? = null
 }
