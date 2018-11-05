@@ -8,12 +8,19 @@
     tools:context=".ChatActivity"
     tools:showIn="@layout/activity_chat">
 
-    <RelativeLayout
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:orientation="vertical">
 
-        <ScrollView android:id="@+id/chatScrollView" android:layout_width="match_parent" android:layout_height="512dp" android:layout_gravity="bottom"
-            app:layout_anchorGravity="bottom" tools:layout_editor_absoluteY="-1dp">
+        <ScrollView android:id="@+id/chatScrollView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight=".8"
+            android:layout_gravity="bottom"
+            app:layout_anchorGravity="bottom"
+            tools:layout_editor_absoluteY="-1dp">
+
             <LinearLayout android:id="@+id/messagesLayout" android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:orientation="vertical">
 
@@ -23,7 +30,7 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_alignParentBottom="true"
+
             android:orientation="horizontal">
 
             <EditText
@@ -45,5 +52,5 @@
                 app:srcCompat="@drawable/ic_menu_send" />
 
         </LinearLayout>
-    </RelativeLayout>
+    </LinearLayout>
 </android.support.constraint.ConstraintLayout>
