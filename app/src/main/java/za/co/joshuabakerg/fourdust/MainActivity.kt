@@ -111,7 +111,10 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
             }
             R.id.nav_share -> {
-
+                val messageSocket = getMessageSocket()
+                val data = LinkedHashMap<String, Any>()
+                data["convId"] = "conv1"
+                messageSocket.emit("join-chat", data)
             }
             R.id.nav_send -> {
                 displayAllChats()

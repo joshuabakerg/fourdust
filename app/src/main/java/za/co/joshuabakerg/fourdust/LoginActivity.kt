@@ -80,6 +80,7 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
                             val user = objectMapper.readValue(it, LinkedHashMap::class.java)
                             UserSession.instance.user = user as LinkedHashMap<String, Object>
                             setResult(Activity.RESULT_OK)
+                            getMessageSocket()
                             finish()
                         }
                         val handler = Handler(applicationContext.mainLooper)
@@ -327,6 +328,7 @@ class LoginActivity : AppCompatActivity(), LoaderCallbacks<Cursor> {
                 edit.commit()
                 setResult(Activity.RESULT_OK)
                 finish()
+                getMessageSocket()
             } else {
                 password.error = getString(R.string.error_incorrect_password)
                 password.requestFocus()
